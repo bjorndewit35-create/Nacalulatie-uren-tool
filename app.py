@@ -203,5 +203,11 @@ def instellingen():
 
 
 if __name__ == "__main__":
+    import threading
+    import webbrowser
+
+    url = "http://127.0.0.1:5000"
     print(f"Database: {DB_PATH}")
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    print(f"De tool opent automatisch in je browser. Lukt dat niet? Ga naar {url}")
+    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+    app.run(host="127.0.0.1", port=5000, debug=False)
