@@ -116,6 +116,29 @@ def uren():
         c.close()
 
 
+@app.route("/uren/overzicht")
+def uren_overzicht():
+    c = conn()
+    try:
+        werknemer_norm = request.args.get("medewerker") or None
+        van = request.args.get("van") or None
+        tot = request.args.get("tot") or None
+        regels = db.uren_overzicht(c, werknemer_norm, van, tot)
+        totaal_min = sum(r["tijd_minuten"] or 0 for r in regels)
+        return render_template(
+            "uren_overzicht.html",
+            regels=regels,
+            medewerkers=db.medewerker_namen(c),
+            geselecteerd=werknemer_norm,
+            van=van or "",
+            tot=tot or "",
+            totaal_min=totaal_min,
+            status=db.db_status(c),
+        )
+    finally:
+        c.close()
+
+
 @app.route("/nacalculatie", methods=["GET", "POST"])
 def nacalculatie():
     c = conn()

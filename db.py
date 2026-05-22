@@ -147,6 +147,27 @@ def naam_display_map(conn):
     return {r["werknemer_norm"]: r["naam"] for r in rows}
 
 
+def uren_overzicht(conn, werknemer_norm=None, van=None, tot=None):
+    """Alle urenregels, optioneel gefilterd op medewerker en/of datumperiode."""
+    sql = (
+        "SELECT werknemer, datum, begintijd, eindtijd, tijd_minuten, "
+        "werkgroep, werksoort, werkzaamheden, status, bron_bestand "
+        "FROM uren WHERE 1=1"
+    )
+    params = []
+    if werknemer_norm:
+        sql += " AND werknemer_norm = ?"
+        params.append(werknemer_norm)
+    if van:
+        sql += " AND datum >= ?"
+        params.append(van)
+    if tot:
+        sql += " AND datum <= ?"
+        params.append(tot)
+    sql += " ORDER BY datum, werknemer, begintijd"
+    return conn.execute(sql, params).fetchall()
+
+
 def gewerkt_op_dag(conn, werknemer_norm, datum):
     """Werkelijk gewerkte minuten (excl. verlof) van één medewerker op één dag."""
     rows = conn.execute(
