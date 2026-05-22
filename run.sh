@@ -10,5 +10,5 @@ if [ ! -d "venv" ]; then
   ./venv/bin/pip install -r requirements.txt
 fi
 
-echo "Tool draait op http://127.0.0.1:5000  (stoppen met Ctrl+C)"
+echo "De tool start en opent automatisch je browser (http://127.0.0.1:5000). Stoppen met Ctrl+C."
 ./venv/bin/python app.py

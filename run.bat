@@ -9,6 +9,7 @@ if not exist "venv" (
   call venv\Scripts\pip.exe install -r requirements.txt
 )
 
-echo Tool draait op http://127.0.0.1:5000  (stoppen met Ctrl+C)
+echo De tool start en opent automatisch je browser (http://127.0.0.1:5000).
+echo Laat dit venster open terwijl je de tool gebruikt; sluiten = tool stoppen.
 call venv\Scripts\python.exe app.py
 pause

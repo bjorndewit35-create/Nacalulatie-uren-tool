@@ -84,6 +84,27 @@ def test_chauffeur_gebruikt_plantijd():
     assert res["project_totaal_min"] == 120
 
 
+def test_lange_chauffeurshift_gebruikt_werkelijke_uren():
+    c = _conn()
+    # Gepland als chauffeur voor 5 uur (>= 4u) en 8 uur geklokt -> werkelijke uren.
+    db.import_uren(c, [_uur({}, werknemer="Alex Bakker", tijd_minuten=480)], "u.xlsx")
+    res = bereken_nacalculatie(c, [_plan("Alex Bakker", "Chauffeur CE", duur_min=300)])
+    regel = res["medewerkers"][0]["regels"][0]
+    assert regel["bron"] == "werkelijk"
+    assert regel["toegekend_min"] == 480
+    assert "4u" in regel["opmerking"]
+
+
+def test_chauffeurshift_exact_4uur_gebruikt_werkelijke_uren():
+    c = _conn()
+    # Grens: 4 uur (240 min) telt al als "lang" -> werkelijke uren.
+    db.import_uren(c, [_uur({}, werknemer="Alex Bakker", tijd_minuten=450)], "u.xlsx")
+    res = bereken_nacalculatie(c, [_plan("Alex Bakker", "Chauffeur C", duur_min=240)])
+    regel = res["medewerkers"][0]["regels"][0]
+    assert regel["bron"] == "werkelijk"
+    assert regel["toegekend_min"] == 450
+
+
 def test_productiefunctie_gebruikt_werkelijke_uren():
     c = _conn()
     db.import_uren(c, [_uur({}, werknemer="Bram Klaassen", tijd_minuten=585)], "u.xlsx")
