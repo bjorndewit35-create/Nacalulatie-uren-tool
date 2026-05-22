@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1>Stap 1 &middot; Urenregistratie uploaden</h1>
+<p class="uitleg">Kies één of meer urenregistratie-bestanden (.xls of .xlsx) uit het ERP.
+Dezelfde maand opnieuw uploaden mag — bestaande regels worden bijgewerkt, niet dubbel opgeslagen.</p>
+
+<form method="post" enctype="multipart/form-data" class="blok">
+  <input type="file" name="bestanden" accept=".xls,.xlsx,.xlsm" multiple required>
+  <button type="submit">Uploaden &amp; opslaan</button>
+</form>
+
+<h2>Database</h2>
+<p>{{ status.regels }} regels &middot; {{ status.medewerkers }} medewerkers
+{% if status.van %}&middot; {{ status.van }} t/m {{ status.tot }}{% endif %}</p>
+
+{% if medewerkers %}
+<details open>
+  <summary>{{ medewerkers|length }} medewerkers in database</summary>
+  <ul class="namen">
+    {% for _norm, naam in medewerkers %}<li>{{ naam }}</li>{% endfor %}
+  </ul>
+</details>
+{% endif %}
+{% endblock %}

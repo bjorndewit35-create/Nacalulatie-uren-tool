@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nacalculatie-uren-tool</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <div class="merk">Nacalculatie-uren-tool</div>
+    <nav>
+      <a href="{{ url_for('index') }}">Dashboard</a>
+      <a href="{{ url_for('uren') }}">Stap 1 &middot; Uren</a>
+      <a href="{{ url_for('nacalculatie') }}">Stap 2 &middot; Nacalculatie</a>
+      <a href="{{ url_for('instellingen') }}">Instellingen</a>
+    </nav>
+  </header>
+  <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="melding {{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block inhoud %}{% endblock %}
+  </main>
+</body>
+</html>

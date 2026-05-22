@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1>Stap 2 &middot; Nacalculatie</h1>
+
+{% if status.regels == 0 %}
+<div class="melding fout">De database is nog leeg. Upload eerst urenregistratie bij <a href="{{ url_for('uren') }}">Stap 1</a>.</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="blok">
+  <label>Projectnaam (optioneel, voor de kop van het rapport)
+    <input type="text" name="projectnaam" placeholder="bv. Paaspop 2026">
+  </label>
+  <label>Planningbestand (.xls of .xlsx)
+    <input type="file" name="planning" accept=".xls,.xlsx,.xlsm" required>
+  </label>
+  <button type="submit">Nacalculatie maken</button>
+</form>
+
+{% if resultaat %}
+  <div class="resultaat-kop">
+    <h2>{{ resultaat.projectnaam or 'Resultaat' }}</h2>
+    <div class="downloads">
+      <a class="knop" href="{{ url_for('exporteer', token=token, fmt='xlsx') }}">Download Excel</a>
+      <a class="knop" href="{{ url_for('exporteer', token=token, fmt='csv') }}">Download CSV</a>
+    </div>
+  </div>
+  <p class="uitleg">{{ resultaat.aantal_planningregels }} planningregels gelezen &middot;
+    {{ resultaat.medewerkers|length }} eigen medewerkers herkend &middot;
+    projecttotaal <strong>{{ resultaat.project_totaal_min|uur }} uur</strong>
+    ({{ resultaat.project_totaal_min|hhmm }}).</p>
+
+  {% if not resultaat.medewerkers %}
+    <div class="melding fout">Geen eigen medewerkers herkend. Controleer of de uren al geüpload zijn,
+      of dat namen anders gespeld zijn (zie Instellingen &middot; aliassen).</div>
+  {% endif %}
+
+  {% for m in resultaat.medewerkers %}
+  <div class="mdw">
+    <h3>{{ m.naam }} <span class="totaal">{{ m.totaal_min|uur }} uur ({{ m.totaal_min|hhmm }})</span></h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Datum</th><th>Functie</th><th>Plantijd</th><th>Werkelijk die dag</th>
+          <th>Toegekend</th><th>Bron</th><th>Opmerking</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in m.regels %}
+        <tr>
+          <td>{{ r.datum }}</td>
+          <td>{{ r.functie }}</td>
+          <td>{{ r.plantijd_min|hhmm }}</td>
+          <td>{{ r.werkelijk_dag_min|hhmm if r.werkelijk_dag_min is not none else '–' }}</td>
+          <td class="nadruk">{{ r.toegekend_min|hhmm }}</td>
+          <td><span class="badge {{ 'plan' if 'plantijd' in r.bron else 'werk' }}">{{ r.bron }}</span></td>
+          <td class="opm">{{ r.opmerking }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+
+  {% if resultaat.ongematcht %}
+  <div class="mdw waarschuwing">
+    <h3>Controleren · {{ resultaat.ongematcht|length }} ongematchte planningregels</h3>
+    <p class="uitleg">Deze namen lijken personen maar staan niet in de uren-database. Mogelijk een spelfout
+      of een externe kracht. Koppel ze eventueel via <a href="{{ url_for('instellingen') }}">Instellingen &middot; aliassen</a>.</p>
+    <table>
+      <thead><tr><th>Naam</th><th>Datum</th><th>Functie</th></tr></thead>
+      <tbody>
+        {% for pr in resultaat.ongematcht %}
+        <tr><td>{{ pr.werknemer }}</td><td>{{ pr.datum }}</td><td>{{ pr.functie }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1>Instellingen</h1>
+
+<div class="mdw">
+  <h2>Plantijd-functies</h2>
+  <p class="uitleg">Voor deze functies wordt de <strong>plantijd</strong> aangehouden in plaats van de
+    werkelijk gewerkte uren van die dag (bv. een chauffeur die maar een paar uur rijdt).
+    De vergelijking is op trefwoord en hoofdletterongevoelig: <em>Chauffeur</em> matcht ook
+    <em>1.4 Chauffeur CE</em>.</p>
+
+  <table>
+    <thead><tr><th>Trefwoord</th><th></th></tr></thead>
+    <tbody>
+      {% for p in patronen %}
+      <tr>
+        <td>{{ p }}</td>
+        <td>
+          <form method="post" class="inline">
+            <input type="hidden" name="actie" value="plantijd_weg">
+            <input type="hidden" name="patroon" value="{{ p }}">
+            <button type="submit" class="klein rood">verwijder</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" class="inline-form">
+    <input type="hidden" name="actie" value="plantijd_toe">
+    <input type="text" name="patroon" placeholder="bv. Stagehand" required>
+    <button type="submit">Toevoegen</button>
+  </form>
+</div>
+
+<div class="mdw">
+  <h2>Naam-aliassen</h2>
+  <p class="uitleg">Koppel een naam zoals die in de <strong>planning</strong> staat aan een naam in de
+    <strong>uren-database</strong>, voor het geval de spelling verschilt.</p>
+
+  <table>
+    <thead><tr><th>Planning-naam</th><th>→ Uren-naam</th><th></th></tr></thead>
+    <tbody>
+      {% for a in aliassen %}
+      <tr>
+        <td>{{ a.planning_naam_norm }}</td>
+        <td>{{ a.uren_naam_norm }}</td>
+        <td>
+          <form method="post" class="inline">
+            <input type="hidden" name="actie" value="alias_weg">
+            <input type="hidden" name="planning_naam_norm" value="{{ a.planning_naam_norm }}">
+            <button type="submit" class="klein rood">verwijder</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      {% if not aliassen %}<tr><td colspan="3" class="leeg">Nog geen aliassen.</td></tr>{% endif %}
+    </tbody>
+  </table>
+
+  <form method="post" class="inline-form">
+    <input type="hidden" name="actie" value="alias_toe">
+    <input type="text" name="planning_naam" placeholder="naam in planning" required>
+    <span>→</span>
+    {% if medewerkers %}
+    <input list="mdw-lijst" name="uren_naam" placeholder="naam in uren-database" required>
+    <datalist id="mdw-lijst">
+      {% for _norm, naam in medewerkers %}<option value="{{ naam }}">{% endfor %}
+    </datalist>
+    {% else %}
+    <input type="text" name="uren_naam" placeholder="naam in uren-database" required>
+    {% endif %}
+    <button type="submit">Koppelen</button>
+  </form>
+</div>
+{% endblock %}

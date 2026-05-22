@@ -1,0 +1,50 @@
+# Nacalculatie-uren-tool
+
+Een lokale webtool om project-nacalculaties te maken voor Hoevenaars Licht Geluid Video.
+
+- **Stap 1 — Uren bijhouden:** upload maandelijks de urenregistratie-export(s) uit het ERP. De tool houdt een database bij die per maand groeit. Hetzelfde bestand opnieuw uploaden is veilig (geen dubbele regels).
+- **Stap 2 — Nacalculatie:** upload de personeelsplanning van één project. De tool zoekt welke **eigen** medewerkers gepland staan, zoekt hun werkelijk gemaakte uren per dag op in de database en geeft een overzicht. Voor korte/deel-functies (bv. *Chauffeur*) wordt de **plantijd** aangehouden in plaats van de hele gewerkte dag.
+
+## Starten
+
+**Windows:** dubbelklik op `run.bat`
+**Mac/Linux:** dubbelklik op `run.sh` (of `./run.sh` in een terminal)
+
+De eerste keer installeert het script automatisch alles. Daarna opent de tool op
+<http://127.0.0.1:5000>. Open die link in je browser.
+
+> Vereiste: Python 3.10 of nieuwer ([python.org/downloads](https://www.python.org/downloads/),
+> op Windows tijdens installatie "Add Python to PATH" aanvinken).
+
+## Hoe het werkt
+
+### Eigen medewerkers herkennen
+Een planningregel telt als "eigen medewerker" zodra die naam in de uren-database voorkomt.
+Materieel (trailers, bussen) en externen (namen met `*` of `**`) vallen daardoor vanzelf af.
+Verschilt een naam tussen planning en uren? Koppel ze via **Instellingen → Naam-aliassen**.
+
+### Uren toekennen
+Per planningregel van een eigen medewerker:
+- **Plantijd-functie** (instelbaar, standaard *Chauffeur* en *Crew Transport*) → de **plantijd** telt.
+- **Overige functies** → de **werkelijk gewerkte uren** van die dag (kolom `Tijd` uit de
+  urenregistratie, pauzes er al af), één keer per medewerker per dag geteld.
+
+Verlofregels tellen niet mee als gewerkte uren. Het overzicht toont per regel zowel de plantijd,
+de werkelijke dag-uren als de toegekende uren, plus opmerkingen, zodat je alles kunt controleren.
+Exporteer naar Excel of CSV met de knoppen bovenaan het resultaat.
+
+## Gegevens & back-up
+Alle data staat lokaal in `data/nacalculatie.db` (een SQLite-bestand). Wil je een back-up of
+overzetten naar een andere pc, kopieer dan dat bestand. Het staat bewust niet in git.
+
+## Ondersteunde bestanden
+Zowel `.xls` (oud Excel-formaat, zoals de planning-export) als `.xlsx` worden gelezen, voor beide stappen.
+
+## Voor ontwikkelaars
+```
+pip install -r requirements.txt pytest
+pytest                 # logica-tests
+python app.py          # start de server
+```
+Modules: `parsing.py` (inlezen/normaliseren), `db.py` (SQLite), `nacalculatie.py` (matching/toekenning),
+`export.py` (Excel/CSV), `app.py` (Flask-routes).

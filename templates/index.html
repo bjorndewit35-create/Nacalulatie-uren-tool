@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1>Dashboard</h1>
+<p class="uitleg">Houd hier maandelijks de urenregistratie bij en maak per project een nacalculatie.</p>
+
+<div class="kaarten">
+  <div class="kaart">
+    <div class="getal">{{ status.medewerkers }}</div>
+    <div class="label">medewerkers in database</div>
+  </div>
+  <div class="kaart">
+    <div class="getal">{{ status.regels }}</div>
+    <div class="label">uren-regels opgeslagen</div>
+  </div>
+  <div class="kaart">
+    <div class="getal">{{ status.van or '–' }}</div>
+    <div class="label">eerste datum</div>
+  </div>
+  <div class="kaart">
+    <div class="getal">{{ status.tot or '–' }}</div>
+    <div class="label">laatste datum</div>
+  </div>
+</div>
+
+<div class="stappen">
+  <a class="stap" href="{{ url_for('uren') }}">
+    <h2>Stap 1 &middot; Uren uploaden</h2>
+    <p>Upload de urenregistratie-export(s) uit het ERP. Re-uploads zijn veilig: bestaande regels worden bijgewerkt, niet gedupliceerd.</p>
+  </a>
+  <a class="stap" href="{{ url_for('nacalculatie') }}">
+    <h2>Stap 2 &middot; Nacalculatie</h2>
+    <p>Upload de personeelsplanning van één project. De tool zoekt de eigen medewerkers op en berekent hun gemaakte uren.</p>
+  </a>
+</div>
+{% endblock %}
