@@ -25,7 +25,9 @@ Verschilt een naam tussen planning en uren? Koppel ze via **Instellingen → Naa
 
 ### Uren toekennen
 Per planningregel van een eigen medewerker:
-- **Plantijd-functie** (instelbaar, standaard *Chauffeur* en *Crew Transport*) → de **plantijd** telt.
+- **Plantijd-functie** (instelbaar, standaard *Chauffeur* en *Crew Transport*) → de **plantijd**
+  telt, maar **alleen als de geplande shift korter is dan 4 uur**. Is de geplande shift 4 uur of
+  langer, dan tellen de werkelijk gewerkte uren van die dag (zoals bij overige functies).
 - **Overige functies** → de **werkelijk gewerkte uren** van die dag (kolom `Tijd` uit de
   urenregistratie, pauzes er al af), één keer per medewerker per dag geteld.
 
