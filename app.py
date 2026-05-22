@@ -90,7 +90,11 @@ def uren():
                 if not records:
                     flash(f"Geen urenregels gevonden in {b.filename}.", "fout")
                     continue
-                toe, bij = db.import_uren(c, records, b.filename)
+                try:
+                    toe, bij = db.import_uren(c, records, b.filename)
+                except Exception as e:  # noqa: BLE001
+                    flash(f"Fout bij opslaan van {b.filename}: {e}", "fout")
+                    continue
                 totaal_toe += toe
                 totaal_bij += bij
                 verwerkt.append((b.filename, toe, bij))
@@ -210,4 +214,4 @@ if __name__ == "__main__":
     print(f"Database: {DB_PATH}")
     print(f"De tool opent automatisch in je browser. Lukt dat niet? Ga naar {url}")
     threading.Timer(1.5, lambda: webbrowser.open(url)).start()
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    app.run(host="127.0.0.1", port=5000, debug=False, threaded=True)
