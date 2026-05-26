@@ -1,4 +1,6 @@
 """Kern: koppelt planningregels aan de uren-database en kent uren toe."""
+from collections import Counter
+
 import db
 from parsing import lijkt_materieel
 
@@ -96,4 +98,76 @@ def bereken_nacalculatie(conn, planning_regels, projectnaam=""):
         "project_totaal_min": project_totaal,
         "ongematcht": ongematcht,
         "aantal_planningregels": len(planning_regels),
+    }
+
+
+def _datum_nl(iso):
+    """ISO-datum 'YYYY-MM-DD' naar 'DD-MM-YYYY' voor weergave."""
+    delen = (iso or "").split("-")
+    return f"{delen[2]}-{delen[1]}-{delen[0]}" if len(delen) == 3 else iso
+
+
+def zoek_werkelijke_uren(conn, planning_regels):
+    """Platte per-regel lijst met de werkelijke gewerkte dag-uren erbij.
+
+    In bestandsvolgorde, materieel overgeslagen, géén plantijd-attributie.
+    """
+    eigen = db.eigen_medewerkers_norm(conn)
+    namen = db.naam_display_map(conn)
+    alias = db.alias_map(conn)
+
+    voorbereid = []
+    voorkomen = Counter()
+    for pr in planning_regels:
+        if lijkt_materieel(pr["werknemer"]):
+            continue
+        unorm = alias.get(pr["werknemer_norm"], pr["werknemer_norm"])
+        voorkomen[(unorm, pr["datum"])] += 1
+        voorbereid.append((pr, unorm))
+
+    rijen = []
+    dag_geteld = set()
+    totaal_min = 0
+    aantal_gevonden = 0
+    for pr, unorm in voorbereid:
+        opmerkingen = []
+        if unorm not in eigen:
+            werkelijk_min = None
+            opmerkingen.append("niet in urenregistratie")
+        else:
+            dag = db.gewerkt_op_dag(conn, unorm, pr["datum"])
+            if not dag["gevonden"]:
+                werkelijk_min = None
+                opmerkingen.append("geen uren op deze dag")
+            else:
+                werkelijk_min = dag["minuten"]
+                aantal_gevonden += 1
+                if (unorm, pr["datum"]) not in dag_geteld:
+                    totaal_min += dag["minuten"]
+                    dag_geteld.add((unorm, pr["datum"]))
+                if voorkomen[(unorm, pr["datum"])] > 1:
+                    opmerkingen.append("zelfde persoon meerdere regels deze dag — uren niet optellen")
+                if dag["verlof"]:
+                    opmerkingen.append("ook verlof deze dag")
+                status_txt = ", ".join(sorted(dag["statuses"]))
+                if status_txt and status_txt != "Geaccordeerd":
+                    opmerkingen.append(f"status: {status_txt}")
+
+        rijen.append({
+            "naam": namen.get(unorm, pr["werknemer"]),
+            "marker": pr["marker"],
+            "datum": pr["datum"],
+            "datum_nl": _datum_nl(pr["datum"]),
+            "functie": pr["functie"],
+            "begintijd": pr["begintijd"],
+            "eindtijd": pr["eindtijd"],
+            "werkelijk_min": werkelijk_min,
+            "opmerking": "; ".join(opmerkingen),
+        })
+
+    return {
+        "rijen": rijen,
+        "totaal_min": totaal_min,
+        "aantal_regels": len(rijen),
+        "aantal_gevonden": aantal_gevonden,
     }

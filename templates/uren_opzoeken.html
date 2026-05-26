@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1>Uren opzoeken</h1>
+<p class="uitleg">Upload je ERP-export van één project. De tool zet er per regel de werkelijke
+gewerkte uren van die medewerker op die dag naast, zodat je ze snel kunt overnemen. Materieel
+(bussen, vrachtwagens, eigen vervoer) wordt overgeslagen. Dit is een platte lijst zonder
+plantijd-correctie — voor de chauffeurs-regeling gebruik je <a href="{{ url_for('nacalculatie') }}">Stap 2</a>.</p>
+
+{% if status.regels == 0 %}
+<div class="melding fout">De database is nog leeg. Upload eerst urenregistratie bij <a href="{{ url_for('uren') }}">Stap 1</a>.</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="blok">
+  <label>Bestand (.xls of .xlsx)
+    <input type="file" name="planning" accept=".xls,.xlsx,.xlsm" required>
+  </label>
+  <button type="submit">Uren opzoeken</button>
+</form>
+
+{% if resultaat %}
+  <p class="uitleg">{{ resultaat.aantal_regels }} regels &middot;
+    {{ resultaat.aantal_gevonden }} met uren gevonden &middot;
+    totaal <strong>{{ resultaat.totaal_min|uur }} uur</strong> ({{ resultaat.totaal_min|hhmm }},
+    elke persoon per dag één keer geteld).</p>
+
+  {% if resultaat.rijen %}
+  <div style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Medewerker</th><th>Datum</th><th>Functie</th><th>Werkelijke uren</th><th>Opmerking</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in resultaat.rijen %}
+      <tr>
+        <td>{{ r.naam }}{% if r.marker %} <span class="badge plan">{{ r.marker }}</span>{% endif %}</td>
+        <td>{{ r.datum_nl }}</td>
+        <td>{{ r.functie }}</td>
+        {% if r.werkelijk_min is not none %}
+          <td class="nadruk">{{ r.werkelijk_min|uur }} ({{ r.werkelijk_min|hhmm }})</td>
+        {% else %}
+          <td class="leeg">&ndash;</td>
+        {% endif %}
+        <td class="opm">{{ r.opmerking }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="melding fout">Geen medewerkers in dit bestand (alleen materieel?).</div>
+  {% endif %}
+{% endif %}
+{% endblock %}

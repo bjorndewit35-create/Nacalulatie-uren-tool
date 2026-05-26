@@ -10,7 +10,7 @@ from flask import (
 
 import db
 import export
-from nacalculatie import bereken_nacalculatie
+from nacalculatie import bereken_nacalculatie, zoek_werkelijke_uren
 from parsing import (
     min_naar_hhmm, min_naar_uur, normaliseer_naam, parse_planning,
     parse_urenregistratie,
@@ -177,6 +177,35 @@ def maandoverzicht():
             rijen=db.maand_dekking(c, gekozen),
             maand_namen=MAAND_NAMEN, status=db.db_status(c),
         )
+    finally:
+        c.close()
+
+
+@app.route("/uren-opzoeken", methods=["GET", "POST"])
+def uren_opzoeken():
+    c = conn()
+    try:
+        if request.method == "POST":
+            bestand = request.files.get("planning")
+            if not bestand or not bestand.filename:
+                flash("Geen bestand gekozen.", "fout")
+                return redirect(url_for("uren_opzoeken"))
+            if not _ext_ok(bestand.filename):
+                flash("Kies een .xls of .xlsx bestand.", "fout")
+                return redirect(url_for("uren_opzoeken"))
+            try:
+                regels = _verwerk_upload(bestand, parse_planning)
+            except Exception as e:  # noqa: BLE001
+                flash(f"Fout bij lezen van het bestand: {e}", "fout")
+                return redirect(url_for("uren_opzoeken"))
+            if not regels:
+                flash("Geen regels gevonden in dit bestand.", "fout")
+                return redirect(url_for("uren_opzoeken"))
+            resultaat = zoek_werkelijke_uren(c, regels)
+            return render_template(
+                "uren_opzoeken.html", resultaat=resultaat, status=db.db_status(c),
+            )
+        return render_template("uren_opzoeken.html", resultaat=None, status=db.db_status(c))
     finally:
         c.close()
 
