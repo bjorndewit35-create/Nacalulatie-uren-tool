@@ -135,6 +135,32 @@ def medewerker_namen(conn):
     return [(r["werknemer_norm"], r["naam"]) for r in rows]
 
 
+def beschikbare_jaren(conn):
+    rows = conn.execute(
+        "SELECT DISTINCT substr(datum,1,4) AS jaar FROM uren "
+        "WHERE datum IS NOT NULL AND datum != '' ORDER BY jaar DESC"
+    ).fetchall()
+    return [r["jaar"] for r in rows]
+
+
+def maand_dekking(conn, jaar):
+    """Per medewerker de set maandnummers (1-12) met data in dit jaar.
+    Geeft [{"naam": str, "maanden": set[int]}, ...] gesorteerd op naam."""
+    rows = conn.execute(
+        "SELECT werknemer_norm, MAX(werknemer) AS naam, "
+        "CAST(substr(datum,6,2) AS INTEGER) AS maand "
+        "FROM uren WHERE substr(datum,1,4) = ? "
+        "GROUP BY werknemer_norm, maand",
+        (jaar,),
+    ).fetchall()
+    per_mdw = {}
+    for r in rows:
+        d = per_mdw.setdefault(r["werknemer_norm"], {"naam": r["naam"], "maanden": set()})
+        if r["maand"]:
+            d["maanden"].add(r["maand"])
+    return sorted(per_mdw.values(), key=lambda d: d["naam"].lower())
+
+
 def eigen_medewerkers_norm(conn):
     rows = conn.execute("SELECT DISTINCT werknemer_norm FROM uren").fetchall()
     return {r["werknemer_norm"] for r in rows}

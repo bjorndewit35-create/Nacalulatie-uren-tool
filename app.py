@@ -1,4 +1,5 @@
 """Flask-webapp voor de nacalculatie-uren-tool (lokaal te draaien)."""
+import datetime
 import os
 import tempfile
 import uuid
@@ -18,6 +19,8 @@ from parsing import (
 BASIS = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("NACALC_DB", os.path.join(BASIS, "data", "nacalculatie.db"))
 TOEGESTANE_EXT = {".xls", ".xlsx", ".xlsm"}
+MAAND_NAMEN = ["jan", "feb", "mrt", "apr", "mei", "jun",
+               "jul", "aug", "sep", "okt", "nov", "dec"]
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("NACALC_SECRET", "lokale-nacalculatie-tool")
@@ -134,6 +137,24 @@ def uren_overzicht():
             tot=tot or "",
             totaal_min=totaal_min,
             status=db.db_status(c),
+        )
+    finally:
+        c.close()
+
+
+@app.route("/maandoverzicht")
+def maandoverzicht():
+    c = conn()
+    try:
+        jaren = db.beschikbare_jaren(c)
+        huidig = str(datetime.date.today().year)
+        gekozen = request.args.get("jaar") or (
+            huidig if huidig in jaren else (jaren[0] if jaren else huidig))
+        return render_template(
+            "maandoverzicht.html",
+            jaren=jaren, gekozen=gekozen,
+            rijen=db.maand_dekking(c, gekozen),
+            maand_namen=MAAND_NAMEN, status=db.db_status(c),
         )
     finally:
         c.close()
