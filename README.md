@@ -36,8 +36,14 @@ de werkelijke dag-uren als de toegekende uren, plus opmerkingen, zodat je alles 
 Exporteer naar Excel of CSV met de knoppen bovenaan het resultaat.
 
 ## Gegevens & back-up
-Alle data staat lokaal in `data/nacalculatie.db` (een SQLite-bestand). Wil je een back-up of
-overzetten naar een andere pc, kopieer dan dat bestand. Het staat bewust niet in git.
+Alle data staat lokaal in één SQLite-bestand in je thuismap: `Nacalculatie-uren-data/nacalculatie.db`
+(op Windows bijv. `C:\Users\<naam>\Nacalculatie-uren-data\nacalculatie.db`). Dit staat bewust
+**buiten** de tool-map, zodat een update of het opnieuw downloaden van de tool je data nooit raakt.
+Een oude database in de tool-map (`data/nacalculatie.db`, van eerdere versies) wordt bij de eerste
+start automatisch naar de nieuwe locatie gekopieerd.
+
+Een back-up maken kan via de knop **Back-up downloaden** op het dashboard, of kopieer het
+database-bestand zelf naar een veilige plek (USB of cloud). Dat ene bestand is je complete database.
 
 ## Ondersteunde bestanden
 Zowel `.xls` (oud Excel-formaat, zoals de planning-export) als `.xlsx` worden gelezen, voor beide stappen.

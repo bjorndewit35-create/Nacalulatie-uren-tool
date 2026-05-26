@@ -71,6 +71,31 @@ def test_import_idempotent():
     assert c.execute("SELECT COUNT(*) FROM uren").fetchone()[0] == 1
 
 
+# --- migratie van database naar nieuwe locatie ---
+
+def test_migreer_db_kopieert_eenmalig(tmp_path):
+    oud = tmp_path / "data" / "nacalculatie.db"
+    oud.parent.mkdir()
+    oud.write_bytes(b"oude-inhoud")
+    nieuw = tmp_path / "thuis" / "nacalculatie.db"
+
+    assert db.migreer_db(str(oud), str(nieuw)) is True
+    assert nieuw.read_bytes() == b"oude-inhoud"
+    assert oud.exists()  # origineel blijft staan
+
+    # Tweede keer: nieuw bestaat al -> niet opnieuw kopiëren.
+    nieuw.write_bytes(b"nieuwere-inhoud")
+    assert db.migreer_db(str(oud), str(nieuw)) is False
+    assert nieuw.read_bytes() == b"nieuwere-inhoud"
+
+
+def test_migreer_db_zonder_oude_db(tmp_path):
+    oud = tmp_path / "bestaat-niet.db"
+    nieuw = tmp_path / "nieuw.db"
+    assert db.migreer_db(str(oud), str(nieuw)) is False
+    assert not nieuw.exists()
+
+
 # --- toekenningslogica ---
 
 def test_chauffeur_gebruikt_plantijd():

@@ -17,7 +17,15 @@ from parsing import (
 )
 
 BASIS = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.environ.get("NACALC_DB", os.path.join(BASIS, "data", "nacalculatie.db"))
+
+
+def _standaard_db_pad():
+    return os.path.join(os.path.expanduser("~"), "Nacalculatie-uren-data", "nacalculatie.db")
+
+
+DB_PATH = os.environ.get("NACALC_DB", _standaard_db_pad())
+# Verhuis een oude database (in de app-map) eenmalig naar de vaste locatie.
+db.migreer_db(os.path.join(BASIS, "data", "nacalculatie.db"), DB_PATH)
 TOEGESTANE_EXT = {".xls", ".xlsx", ".xlsm"}
 MAAND_NAMEN = ["jan", "feb", "mrt", "apr", "mei", "jun",
                "jul", "aug", "sep", "okt", "nov", "dec"]
@@ -64,9 +72,22 @@ def _verwerk_upload(bestand, parser):
 def index():
     c = conn()
     try:
-        return render_template("index.html", status=db.db_status(c))
+        return render_template("index.html", status=db.db_status(c), db_pad=DB_PATH)
     finally:
         c.close()
+
+
+@app.route("/backup")
+def backup():
+    if not os.path.exists(DB_PATH):
+        flash("Nog geen database om te back-uppen.", "fout")
+        return redirect(url_for("index"))
+    datum = datetime.date.today().isoformat()
+    return send_file(
+        DB_PATH, as_attachment=True,
+        download_name=f"nacalculatie-backup-{datum}.db",
+        mimetype="application/octet-stream",
+    )
 
 
 @app.route("/uren", methods=["GET", "POST"])
