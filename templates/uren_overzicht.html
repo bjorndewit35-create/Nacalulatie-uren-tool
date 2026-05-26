@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1>Geüploade uurstaten</h1>
+
+<form method="get" class="blok">
+  <label>Medewerker
+    <select name="medewerker">
+      <option value="">— alle medewerkers —</option>
+      {% for norm, naam in medewerkers %}
+        <option value="{{ norm }}" {% if geselecteerd == norm %}selected{% endif %}>{{ naam }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;">
+    <label>Van
+      <input type="date" name="van" value="{{ van }}">
+    </label>
+    <label>Tot en met
+      <input type="date" name="tot" value="{{ tot }}">
+    </label>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <button type="submit">Filteren</button>
+    {% if geselecteerd or van or tot %}
+      <a href="{{ url_for('uren_overzicht') }}" class="knop" style="background:#6b7686;">Wis filter</a>
+    {% endif %}
+  </div>
+</form>
+
+{% if regels %}
+<p style="color:#5b6675;">{{ regels|length }} regels &middot; totaal <strong>{{ totaal_min | hhmm }}</strong> uur</p>
+<div style="overflow-x:auto;">
+<table>
+  <thead>
+    <tr>
+      <th>Datum</th>
+      <th>Medewerker</th>
+      <th>Begin</th>
+      <th>Eind</th>
+      <th>Tijd</th>
+      <th>Werkgroep</th>
+      <th>Werksoort</th>
+      <th>Werkzaamheden</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in regels %}
+    <tr>
+      <td>{{ r.datum }}</td>
+      <td>{{ r.werknemer }}</td>
+      <td>{{ r.begintijd or "—" }}</td>
+      <td>{{ r.eindtijd or "—" }}</td>
+      <td class="nadruk">{{ r.tijd_minuten | hhmm if r.tijd_minuten is not none else "—" }}</td>
+      <td>{{ r.werkgroep or "" }}</td>
+      <td>{{ r.werksoort or "" }}</td>
+      <td class="opm">{{ r.werkzaamheden or "" }}</td>
+      <td>
+        {% if r.status == "Geaccordeerd" %}
+          <span class="badge werk">{{ r.status }}</span>
+        {% elif r.status %}
+          <span class="badge plan">{{ r.status }}</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="uitleg">Geen regels gevonden{% if geselecteerd or van or tot %} voor deze filter{% endif %}.</p>
+{% endif %}
+{% endblock %}

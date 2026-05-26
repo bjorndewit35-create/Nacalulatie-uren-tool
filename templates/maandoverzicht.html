@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1>Maandoverzicht</h1>
+<p class="uitleg">Per medewerker zie je welke maanden van het gekozen jaar al geüpload zijn
+(groen) en welke nog ontbreken (grijs).</p>
+
+<form method="get" class="blok">
+  <label>Jaar
+    <select name="jaar" onchange="this.form.submit()">
+      {% for j in jaren %}
+        <option value="{{ j }}" {% if j == gekozen %}selected{% endif %}>{{ j }}</option>
+      {% endfor %}
+      {% if gekozen not in jaren %}
+        <option value="{{ gekozen }}" selected>{{ gekozen }}</option>
+      {% endif %}
+    </select>
+  </label>
+  <noscript><button type="submit">Toon</button></noscript>
+</form>
+
+{% if rijen %}
+<div class="legenda">
+  <span><i style="background:var(--groen);"></i> geüpload</span>
+  <span><i style="background:var(--rand);"></i> niet geüpload</span>
+</div>
+<div style="overflow-x:auto;">
+<table>
+  <thead>
+    <tr>
+      <th>Medewerker</th>
+      {% for m in maand_namen %}<th style="text-align:center;">{{ m }}</th>{% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for rij in rijen %}
+    <tr>
+      <td>{{ rij.naam }}</td>
+      {% for m in maand_namen %}
+        {% if loop.index in rij.maanden %}
+          <td class="cel vol" title="{{ m }} {{ gekozen }}: geüpload"><span class="blok"></span></td>
+        {% else %}
+          <td class="cel leeg" title="{{ m }} {{ gekozen }}: niet geüpload"><span class="blok"></span></td>
+        {% endif %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="uitleg">Nog geen uren geüpload voor {{ gekozen }}.</p>
+{% endif %}
+{% endblock %}

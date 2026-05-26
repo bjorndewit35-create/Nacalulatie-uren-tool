@@ -48,7 +48,7 @@ h1 { margin-top: 0; }
 .blok, .mdw { background: #fff; border: 1px solid var(--rand); border-radius: 10px; padding: 20px; margin: 18px 0; }
 .blok { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
 label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; width: 100%; max-width: 460px; }
-input[type=text], input[list] { padding: 9px 11px; border: 1px solid var(--rand); border-radius: 7px; font-size: 14px; }
+input[type=text], input[list], input[type=date], select { padding: 9px 11px; border: 1px solid var(--rand); border-radius: 7px; font-size: 14px; }
 input[type=file] { font-size: 14px; }
 
 button, .knop {
@@ -83,3 +83,11 @@ td.leeg { color: #8a93a0; }
 .inline-form { display: flex; gap: 8px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
 .inline-form input { max-width: 240px; }
 details summary { cursor: pointer; font-weight: 600; }
+
+td.cel { width: 34px; text-align: center; padding: 0; }
+td.cel .blok { display: block; width: 22px; height: 22px; margin: 0 auto; border-radius: 5px; }
+td.cel.vol .blok { background: var(--groen); }
+td.cel.leeg .blok { background: var(--rand); }
+.legenda { display: flex; gap: 16px; align-items: center; color: #5b6675; font-size: 13px; margin: 8px 0 16px; }
+.legenda span { display: inline-flex; gap: 6px; align-items: center; }
+.legenda i { width: 16px; height: 16px; border-radius: 4px; display: inline-block; }
