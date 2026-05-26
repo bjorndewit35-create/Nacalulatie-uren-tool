@@ -32,4 +32,12 @@
     <p>Upload de personeelsplanning van één project. De tool zoekt de eigen medewerkers op en berekent hun gemaakte uren.</p>
   </a>
 </div>
+
+<div class="blok">
+  <p><strong>Je gegevens staan veilig opgeslagen in:</strong><br><code>{{ db_pad }}</code></p>
+  <p class="uitleg">Dit bestand bevat al je geüploade uren en staat buiten de tool-map, dus een
+  update van de tool raakt het niet. Maak af en toe een back-up — kopieer dit bestand naar een
+  veilige plek (USB of cloud), of gebruik de knop hieronder.</p>
+  <a class="knop" href="{{ url_for('backup') }}">Back-up downloaden</a>
+</div>
 {% endblock %}

@@ -1,10 +1,21 @@
 """SQLite-database: schema, idempotente import en queries voor de tool."""
 import os
+import shutil
 import sqlite3
 
 from parsing import is_verlof
 
 STANDAARD_PLANTIJD_FUNCTIES = ["Chauffeur", "Crew Transport"]
+
+
+def migreer_db(oud_pad, nieuw_pad):
+    """Kopieer een bestaande oude database eenmalig naar de nieuwe locatie.
+    Kopieert alleen als de nieuwe nog niet bestaat en de oude wél. Geeft True bij migratie."""
+    if oud_pad == nieuw_pad or os.path.exists(nieuw_pad) or not os.path.exists(oud_pad):
+        return False
+    os.makedirs(os.path.dirname(nieuw_pad) or ".", exist_ok=True)
+    shutil.copy2(oud_pad, nieuw_pad)
+    return True
 
 
 def get_conn(path):

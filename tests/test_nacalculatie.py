@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import db  # noqa: E402
-from nacalculatie import bereken_nacalculatie  # noqa: E402
+from nacalculatie import bereken_nacalculatie, zoek_werkelijke_uren  # noqa: E402
 from parsing import (  # noqa: E402
     naam_marker, normaliseer_naam, parse_tijd_naar_minuten,
 )
@@ -69,6 +69,31 @@ def test_import_idempotent():
     toe, bij = db.import_uren(c, recs, "test.xlsx")
     assert (toe, bij) == (0, 1)
     assert c.execute("SELECT COUNT(*) FROM uren").fetchone()[0] == 1
+
+
+# --- migratie van database naar nieuwe locatie ---
+
+def test_migreer_db_kopieert_eenmalig(tmp_path):
+    oud = tmp_path / "data" / "nacalculatie.db"
+    oud.parent.mkdir()
+    oud.write_bytes(b"oude-inhoud")
+    nieuw = tmp_path / "thuis" / "nacalculatie.db"
+
+    assert db.migreer_db(str(oud), str(nieuw)) is True
+    assert nieuw.read_bytes() == b"oude-inhoud"
+    assert oud.exists()  # origineel blijft staan
+
+    # Tweede keer: nieuw bestaat al -> niet opnieuw kopiëren.
+    nieuw.write_bytes(b"nieuwere-inhoud")
+    assert db.migreer_db(str(oud), str(nieuw)) is False
+    assert nieuw.read_bytes() == b"nieuwere-inhoud"
+
+
+def test_migreer_db_zonder_oude_db(tmp_path):
+    oud = tmp_path / "bestaat-niet.db"
+    nieuw = tmp_path / "nieuw.db"
+    assert db.migreer_db(str(oud), str(nieuw)) is False
+    assert not nieuw.exists()
 
 
 # --- toekenningslogica ---
@@ -159,3 +184,53 @@ def test_alias_koppelt_afwijkende_naam():
     res = bereken_nacalculatie(c, [_plan("F. de Wit", "Lichttech Montage", duur_min=600)])
     assert len(res["medewerkers"]) == 1
     assert res["medewerkers"][0]["naam"] == "Frank de Wit"
+
+
+# --- uren opzoeken (platte lijst) ---
+
+def test_opzoeken_vindt_werkelijke_uren():
+    c = _conn()
+    db.import_uren(c, [_uur({}, werknemer="Gerrit Jong", tijd_minuten=540)], "u.xlsx")
+    res = zoek_werkelijke_uren(c, [_plan("Gerrit Jong", "Licht Stagehand", duur_min=600)])
+    assert res["aantal_regels"] == 1
+    rij = res["rijen"][0]
+    assert rij["werkelijk_min"] == 540
+    assert rij["datum_nl"] == "25-04-2026"
+    assert res["totaal_min"] == 540
+
+
+def test_opzoeken_onbekende_naam_niet_gevonden():
+    c = _conn()
+    db.import_uren(c, [_uur({}, werknemer="Hans Bakker")], "u.xlsx")
+    res = zoek_werkelijke_uren(c, [_plan("Onbekend Persoon *", "Audio Operator")])
+    rij = res["rijen"][0]
+    assert rij["werkelijk_min"] is None
+    assert "niet in urenregistratie" in rij["opmerking"]
+    assert res["totaal_min"] == 0
+
+
+def test_opzoeken_slaat_materieel_over():
+    c = _conn()
+    db.import_uren(c, [_uur({}, werknemer="Ivo Vos")], "u.xlsx")
+    regels = [
+        _plan("Ivo Vos", "Licht Stagehand"),
+        _plan("Bus B-01 (Caddy) VL-173-F", "Crew Transport"),
+        _plan("Vrachtwagen VR-02 99-BKV-8", "Bakwagen 35 m3"),
+    ]
+    res = zoek_werkelijke_uren(c, regels)
+    assert res["aantal_regels"] == 1
+    assert res["rijen"][0]["naam"] == "Ivo Vos"
+
+
+def test_opzoeken_dubbele_dag_telt_uren_een_keer():
+    c = _conn()
+    db.import_uren(c, [_uur({}, werknemer="Joost Kerk", tijd_minuten=480)], "u.xlsx")
+    regels = [
+        _plan("Joost Kerk", "Licht Stagehand"),
+        _plan("Joost Kerk", "Audio Stagehand"),
+    ]
+    res = zoek_werkelijke_uren(c, regels)
+    assert res["aantal_regels"] == 2
+    assert all(r["werkelijk_min"] == 480 for r in res["rijen"])
+    assert "niet optellen" in res["rijen"][0]["opmerking"]
+    assert res["totaal_min"] == 480  # dag maar één keer geteld
