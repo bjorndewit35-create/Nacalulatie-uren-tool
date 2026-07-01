@@ -10,7 +10,7 @@ from flask import (
 
 import db
 import export
-from nacalculatie import bereken_nacalculatie, zoek_werkelijke_uren
+from nacalculatie import _datum_nl, bereken_nacalculatie, zoek_werkelijke_uren
 from parsing import (
     min_naar_hhmm, min_naar_uur, normaliseer_naam, parse_planning,
     parse_urenregistratie,
@@ -36,6 +36,7 @@ app.secret_key = os.environ.get("NACALC_SECRET", "lokale-nacalculatie-tool")
 # Resultaten van een nacalculatie tijdelijk bewaren voor de download-knoppen.
 # Single-user lokale app, dus een eenvoudige in-memory cache volstaat.
 _resultaten = {}
+_opzoek_resultaten = {}
 
 
 def conn():
@@ -119,14 +120,25 @@ def uren():
                 except Exception as e:  # noqa: BLE001
                     flash(f"Fout bij opslaan van {b.filename}: {e}", "fout")
                     continue
+                mdw_count = len({r["werknemer_norm"] for r in records})
+                datums = [r["datum"] for r in records if r["datum"]]
+                periode = (
+                    f"{_datum_nl(min(datums))} t/m {_datum_nl(max(datums))}"
+                    if datums else "geen datums"
+                )
                 totaal_toe += toe
                 totaal_bij += bij
-                verwerkt.append((b.filename, toe, bij))
-
-            if verwerkt:
+                verwerkt.append(b.filename)
                 flash(
-                    f"Verwerkt: {totaal_toe} nieuwe regels, {totaal_bij} bijgewerkt "
-                    f"(uit {len(verwerkt)} bestand(en)).",
+                    f"{b.filename}: {mdw_count} medewerker(s), {periode} — "
+                    f"{toe} nieuw, {bij} bijgewerkt.",
+                    "ok",
+                )
+
+            if len(verwerkt) > 1:
+                flash(
+                    f"Totaal: {totaal_toe} nieuwe regels, {totaal_bij} bijgewerkt "
+                    f"(uit {len(verwerkt)} bestanden).",
                     "ok",
                 )
             return redirect(url_for("uren"))
@@ -135,9 +147,28 @@ def uren():
             "upload_uren.html",
             status=db.db_status(c),
             medewerkers=db.medewerker_namen(c),
+            uploads=db.uploads_overzicht(c),
         )
     finally:
         c.close()
+
+
+@app.route("/uren/verwijder", methods=["POST"])
+def uren_verwijder():
+    bron = request.form.get("bron_bestand")
+    if not bron:
+        flash("Geen bestand opgegeven.", "fout")
+        return redirect(url_for("uren"))
+    c = conn()
+    try:
+        aantal = db.verwijder_upload(c, bron)
+        if aantal:
+            flash(f"{aantal} regels van '{bron}' verwijderd.", "ok")
+        else:
+            flash(f"Niets gevonden voor '{bron}'.", "fout")
+    finally:
+        c.close()
+    return redirect(url_for("uren"))
 
 
 @app.route("/uren/overzicht")
@@ -202,12 +233,38 @@ def uren_opzoeken():
                 flash("Geen regels gevonden in dit bestand.", "fout")
                 return redirect(url_for("uren_opzoeken"))
             resultaat = zoek_werkelijke_uren(c, regels)
+            token = uuid.uuid4().hex
+            _opzoek_resultaten[token] = resultaat
             return render_template(
-                "uren_opzoeken.html", resultaat=resultaat, status=db.db_status(c),
+                "uren_opzoeken.html", resultaat=resultaat, token=token,
+                status=db.db_status(c),
             )
-        return render_template("uren_opzoeken.html", resultaat=None, status=db.db_status(c))
+        return render_template(
+            "uren_opzoeken.html", resultaat=None, token=None, status=db.db_status(c)
+        )
     finally:
         c.close()
+
+
+@app.route("/uren-opzoeken/export/<token>.<fmt>")
+def opzoek_export(token, fmt):
+    resultaat = _opzoek_resultaten.get(token)
+    if not resultaat:
+        flash("Resultaat verlopen, zoek de uren opnieuw op.", "fout")
+        return redirect(url_for("uren_opzoeken"))
+    if fmt == "xlsx":
+        return send_file(
+            export.plat_naar_xlsx(resultaat), as_attachment=True,
+            download_name="uren-opzoeken.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    if fmt == "csv":
+        return send_file(
+            export.plat_naar_csv(resultaat), as_attachment=True,
+            download_name="uren-opzoeken.csv", mimetype="text/csv",
+        )
+    flash("Onbekend exportformaat.", "fout")
+    return redirect(url_for("uren_opzoeken"))
 
 
 @app.route("/nacalculatie", methods=["GET", "POST"])

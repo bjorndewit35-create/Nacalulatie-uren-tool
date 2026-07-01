@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import db  # noqa: E402
 from nacalculatie import bereken_nacalculatie, zoek_werkelijke_uren  # noqa: E402
 from parsing import (  # noqa: E402
-    naam_marker, normaliseer_naam, parse_tijd_naar_minuten,
+    lijkt_materieel, naam_marker, normaliseer_naam, parse_tijd_naar_minuten,
 )
 
 
@@ -234,3 +234,115 @@ def test_opzoeken_dubbele_dag_telt_uren_een_keer():
     assert all(r["werkelijk_min"] == 480 for r in res["rijen"])
     assert "niet optellen" in res["rijen"][0]["opmerking"]
     assert res["totaal_min"] == 480  # dag maar één keer geteld
+
+
+# --- #1: plantijd niet dubbel bovenop de gewerkte dag ---
+
+def test_plantijd_niet_dubbel_op_productiedag():
+    c = _conn()
+    # Zelfde persoon: korte chauffeursrit (2u, plantijd) én productie op dezelfde dag.
+    db.import_uren(c, [_uur({}, werknemer="Karel Mol", tijd_minuten=480)], "u.xlsx")
+    regels = [
+        _plan("Karel Mol", "1.4 Chauffeur CE", duur_min=120),   # plantijd-functie <4u
+        _plan("Karel Mol", "Lichttech Montage", duur_min=600),  # productie
+    ]
+    res = bereken_nacalculatie(c, regels)
+    m = res["medewerkers"][0]
+    # Alleen de volle gewerkte dag telt; de rit valt daarbinnen -> geen 600.
+    assert m["totaal_min"] == 480
+    chauf = [r for r in m["regels"] if "Chauffeur" in r["functie"]][0]
+    assert chauf["toegekend_min"] == 0
+    assert "binnen de werkelijke dag" in chauf["opmerking"]
+    # Uitkomst is onafhankelijk van de volgorde van de planningregels.
+    res2 = bereken_nacalculatie(c, list(reversed(regels)))
+    assert res2["medewerkers"][0]["totaal_min"] == 480
+
+
+def test_plantijd_blijft_op_dag_zonder_productie():
+    c = _conn()
+    # Alleen een korte rit die dag -> plantijd blijft gelden (geen productie).
+    db.import_uren(c, [_uur({}, werknemer="Karel Mol", tijd_minuten=480)], "u.xlsx")
+    res = bereken_nacalculatie(c, [_plan("Karel Mol", "Chauffeur C", duur_min=120)])
+    m = res["medewerkers"][0]
+    assert m["totaal_min"] == 120
+    assert m["regels"][0]["bron"] == "plantijd"
+
+
+def test_niet_geaccordeerd_waarschuwing():
+    c = _conn()
+    db.import_uren(
+        c, [_uur({}, werknemer="Otto Reis", tijd_minuten=480, status="Ingediend")], "u.xlsx"
+    )
+    res = bereken_nacalculatie(c, [_plan("Otto Reis", "Lichttech Montage", duur_min=600)])
+    ng = res["niet_geaccordeerd"]
+    assert ng["regels"] == 1
+    assert ng["totaal_regels"] == 1
+    assert ng["minuten"] == 480
+
+
+# --- #2: materieel-herkenning zonder false positives ---
+
+def test_lijkt_materieel_geen_false_positive_op_personen():
+    # Echte medewerkers met een materieel-woord in de naam blijven personen.
+    assert lijkt_materieel("Kees Bus") is False
+    assert lijkt_materieel("Anke Trekker") is False
+    assert lijkt_materieel("Jan Vrachtwagen") is False
+    # Echt materieel blijft herkend (begint met type of heeft kenteken/frase).
+    assert lijkt_materieel("Bus B-01 (Caddy) VL-173-F") is True
+    assert lijkt_materieel("Vrachtwagen VR-02 99-BKV-8") is True
+    assert lijkt_materieel("Trailer OPL-01 OS-02-DS") is True
+    assert lijkt_materieel("Eigen Vervoer") is True
+
+
+def test_opzoeken_persoon_met_materieelwoord_in_naam():
+    c = _conn()
+    db.import_uren(c, [_uur({}, werknemer="Kees Bus", tijd_minuten=480)], "u.xlsx")
+    res = zoek_werkelijke_uren(c, [_plan("Kees Bus", "Licht Stagehand")])
+    assert res["aantal_regels"] == 1
+    assert res["rijen"][0]["werkelijk_min"] == 480
+
+
+# --- #3: import zonder declaratie-id verliest geen uren ---
+
+def test_import_zonder_declaratie_id_behoudt_regels():
+    c = _conn()
+    r1 = _uur({}, werknemer="Lot Prins", begintijd=None, eindtijd=None,
+              werksoort="Montage", declaratie_id=None, tijd_minuten=240)
+    r2 = _uur({}, werknemer="Lot Prins", begintijd=None, eindtijd=None,
+              werksoort="Montage", declaratie_id=None, tijd_minuten=180)
+    toe, bij = db.import_uren(c, [r1, r2], "geen-id.xlsx")
+    assert (toe, bij) == (2, 0)
+    tot = c.execute(
+        "SELECT SUM(tijd_minuten) FROM uren WHERE werknemer_norm = ?",
+        (normaliseer_naam("Lot Prins"),),
+    ).fetchone()[0]
+    assert tot == 420  # beide regels bewaard, niets overschreven
+    # Her-upload van hetzelfde bestand blijft idempotent.
+    toe2, _ = db.import_uren(c, [r1, r2], "geen-id.xlsx")
+    assert toe2 == 0
+
+
+def test_import_zonder_declaratie_id_identieke_regels():
+    c = _conn()
+    # Twee volledig identieke regels zonder id -> beide bewaard via volgnummer.
+    r = _uur({}, werknemer="Pim Das", begintijd=None, eindtijd=None,
+             werksoort="Montage", declaratie_id=None, tijd_minuten=240)
+    toe, _ = db.import_uren(c, [dict(r), dict(r)], "geen-id.xlsx")
+    assert toe == 2
+    assert c.execute("SELECT COUNT(*) FROM uren").fetchone()[0] == 2
+
+
+# --- upload verwijderen ---
+
+def test_verwijder_upload():
+    c = _conn()
+    db.import_uren(c, [_uur({}, werknemer="Mira Fen")], "bestand-a.xlsx")
+    db.import_uren(
+        c, [_uur({}, werknemer="Nout Aal", datum="2026-05-01")], "bestand-b.xlsx"
+    )
+    assert db.verwijder_upload(c, "bestand-a.xlsx") == 1
+    namen = [n for _, n in db.medewerker_namen(c)]
+    assert namen == ["Nout Aal"]
+    ups = db.uploads_overzicht(c)
+    assert len(ups) == 1
+    assert ups[0]["bron_bestand"] == "bestand-b.xlsx"

@@ -2,6 +2,7 @@
 import os
 import shutil
 import sqlite3
+from collections import Counter
 
 from parsing import is_verlof
 
@@ -88,8 +89,19 @@ def _rij_key(rec):
 def import_uren(conn, records, bron_bestand):
     """Voegt records idempotent toe. Geeft (toegevoegd, bijgewerkt)."""
     toegevoegd = bijgewerkt = 0
+    volgnummers = Counter()
     for rec in records:
         key = _rij_key(rec)
+        if rec.get("declaratie_id") is None:
+            # Zonder declaratie-id is de basissleutel niet uniek genoeg: twee
+            # echt verschillende regels (zelfde persoon/dag/tijd/werksoort) zouden
+            # elkaar anders overschrijven en uren laten verdwijnen. Onderscheid
+            # daarom op inhoud (tijd + werkzaamheden) plus een volgnummer voor
+            # verder identieke regels. Blijft stabiel bij her-upload van hetzelfde
+            # bestand: zelfde volgorde -> zelfde sleutels -> idempotent.
+            inhoud = f"{key}|t={rec.get('tijd_minuten')}|w={rec.get('werkzaamheden') or ''}"
+            key = f"{inhoud}|#{volgnummers[inhoud]}"
+            volgnummers[inhoud] += 1
         bestaat = conn.execute(
             "SELECT 1 FROM uren WHERE rij_key = ?", (key,)
         ).fetchone()
@@ -170,6 +182,24 @@ def maand_dekking(conn, jaar):
         if r["maand"]:
             d["maanden"].add(r["maand"])
     return sorted(per_mdw.values(), key=lambda d: d["naam"].lower())
+
+
+def uploads_overzicht(conn):
+    """Per bronbestand: aantal regels, aantal medewerkers en datumbereik."""
+    rows = conn.execute(
+        "SELECT bron_bestand, COUNT(*) AS regels, "
+        "COUNT(DISTINCT werknemer_norm) AS medewerkers, "
+        "MIN(datum) AS van, MAX(datum) AS tot "
+        "FROM uren GROUP BY bron_bestand ORDER BY bron_bestand"
+    ).fetchall()
+    return rows
+
+
+def verwijder_upload(conn, bron_bestand):
+    """Verwijdert alle urenregels van één bronbestand. Geeft aantal verwijderd."""
+    cur = conn.execute("DELETE FROM uren WHERE bron_bestand = ?", (bron_bestand,))
+    conn.commit()
+    return cur.rowcount
 
 
 def eigen_medewerkers_norm(conn):

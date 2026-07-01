@@ -21,4 +21,33 @@ Dezelfde maand opnieuw uploaden mag — bestaande regels worden bijgewerkt, niet
   </ul>
 </details>
 {% endif %}
+
+{% if uploads %}
+<h2>Geüploade bestanden</h2>
+<p class="uitleg">Verkeerd bestand geüpload? Verwijder hier alle regels van dat bestand uit de database.</p>
+<div style="overflow-x:auto;">
+<table>
+  <thead>
+    <tr><th>Bestand</th><th>Regels</th><th>Medewerkers</th><th>Periode</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for u in uploads %}
+    <tr>
+      <td>{{ u.bron_bestand }}</td>
+      <td>{{ u.regels }}</td>
+      <td>{{ u.medewerkers }}</td>
+      <td>{% if u.van %}{{ u.van }} t/m {{ u.tot }}{% endif %}</td>
+      <td>
+        <form method="post" action="{{ url_for('uren_verwijder') }}" class="inline"
+              onsubmit="return confirm('Alle {{ u.regels }} regels van {{ u.bron_bestand }} verwijderen?');">
+          <input type="hidden" name="bron_bestand" value="{{ u.bron_bestand }}">
+          <button type="submit" class="klein rood">Verwijderen</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
 {% endblock %}

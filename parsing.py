@@ -11,15 +11,24 @@ import unicodedata
 import openpyxl
 import xlrd
 
-# Trefwoorden om materieel/niet-personen in de planning te herkennen. Wordt
-# alleen gebruikt om de "controleren"-lijst rustig te houden; matching op eigen
-# medewerkers gebeurt op aanwezigheid in de uren-database. Let op: alleen op het
-# resource-/werknemerveld checken, niet op de functie -- een functie als
+# Materieel/niet-personen in de planning herkennen. Wordt alleen gebruikt om de
+# "controleren"-lijst rustig te houden en om materieel over te slaan; matching op
+# eigen medewerkers gebeurt op aanwezigheid in de uren-database. Let op: alleen op
+# het resource-/werknemerveld checken, niet op de functie -- een functie als
 # "...Hoogwerker" hoort bij een echte persoon die dat materieel bedient.
-NIET_PERSOON_KW = [
+#
+# Materieel-namen beginnen met het type ("Bus B-01…", "Vrachtwagen VR-02…",
+# "Trailer …") of zijn een vaste niet-persoon post ("Eigen Vervoer", "…Logistiek").
+# We matchen daarom op het BEGIN van de naam of op een kenteken-achtig patroon --
+# NIET op een losse substring, anders zou een echte medewerker met achternaam
+# "Bus"/"Trekker" ten onrechte als materieel worden weggelaten.
+MATERIEEL_PREFIX = {
     "trailer", "bakwagen", "vrachtwagen", "trekker", "aanhanger", "oplegger",
-    "bus ", "bus(", "eigen vervoer", "2-inspire", "logistiek",
-]
+    "bus", "bestelbus", "aanhangwagen",
+}
+MATERIEEL_FRASE = ["eigen vervoer", "logistiek", "2-inspire"]
+# Kenteken/materieelcode zoals VL-173-F, 99-BKV-8, OS-02-DS (drie alfanum. groepen).
+_KENTEKEN = re.compile(r"\b[a-z0-9]{1,3}-[a-z0-9]{1,3}-[a-z0-9]{1,3}\b")
 
 
 def normaliseer_naam(naam):
@@ -283,5 +292,12 @@ def parse_planning(path):
 
 
 def lijkt_materieel(werknemer, functie=None):
-    s = f" {werknemer or ''} ".lower()
-    return any(k in s for k in NIET_PERSOON_KW)
+    s = " ".join(str(werknemer or "").lower().split())
+    if not s:
+        return False
+    eerste = s.split(" ", 1)[0]
+    if eerste in MATERIEEL_PREFIX:
+        return True
+    if any(f in s for f in MATERIEEL_FRASE):
+        return True
+    return bool(_KENTEKEN.search(s))

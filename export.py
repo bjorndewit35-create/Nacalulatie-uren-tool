@@ -83,3 +83,67 @@ def naar_csv(resultaat):
     w.writerow(["PROJECTTOTAAL", "", "", "", "", "", "", min_naar_uur(tot), min_naar_hhmm(tot)])
     data = buf.getvalue().encode("utf-8-sig")
     return io.BytesIO(data)
+
+
+# --- Platte "uren opzoeken"-lijst (per regel, in bestandsvolgorde) ---
+
+PLAT_KOPPEN = [
+    "Medewerker", "Markering", "Datum", "Functie", "Begintijd", "Eindtijd",
+    "Werkelijke uren (uur)", "Werkelijke uren (uu:mm)", "Opmerking",
+]
+
+
+def _plat_rijen(resultaat):
+    for r in resultaat["rijen"]:
+        wm = r["werkelijk_min"]
+        yield [
+            r["naam"],
+            r["marker"] or "",
+            r["datum_nl"],
+            r["functie"],
+            r["begintijd"] or "",
+            r["eindtijd"] or "",
+            min_naar_uur(wm) if wm is not None else "",
+            min_naar_hhmm(wm) if wm is not None else "",
+            r["opmerking"],
+        ]
+
+
+def plat_naar_xlsx(resultaat):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Uren opzoeken"
+
+    ws.append(PLAT_KOPPEN)
+    for c in ws[ws.max_row]:
+        c.font = Font(bold=True)
+
+    for rij in _plat_rijen(resultaat):
+        ws.append(rij)
+
+    ws.append([])
+    tot = resultaat["totaal_min"]
+    ws.append(["TOTAAL (elke persoon per dag 1x)", "", "", "", "", "",
+               min_naar_uur(tot), min_naar_hhmm(tot)])
+    ws[ws.max_row][0].font = Font(bold=True)
+
+    for col, breedte in zip("ABCDEFGHI", [22, 9, 12, 30, 10, 10, 18, 18, 40]):
+        ws.column_dimensions[col].width = breedte
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+def plat_naar_csv(resultaat):
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=";")
+    w.writerow(PLAT_KOPPEN)
+    for rij in _plat_rijen(resultaat):
+        w.writerow(rij)
+    w.writerow([])
+    tot = resultaat["totaal_min"]
+    w.writerow(["TOTAAL (elke persoon per dag 1x)", "", "", "", "", "",
+                min_naar_uur(tot), min_naar_hhmm(tot)])
+    return io.BytesIO(buf.getvalue().encode("utf-8-sig"))

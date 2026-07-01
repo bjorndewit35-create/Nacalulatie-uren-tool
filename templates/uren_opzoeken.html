@@ -18,10 +18,18 @@ plantijd-correctie — voor de chauffeurs-regeling gebruik je <a href="{{ url_fo
 </form>
 
 {% if resultaat %}
-  <p class="uitleg">{{ resultaat.aantal_regels }} regels &middot;
-    {{ resultaat.aantal_gevonden }} met uren gevonden &middot;
-    totaal <strong>{{ resultaat.totaal_min|uur }} uur</strong> ({{ resultaat.totaal_min|hhmm }},
-    elke persoon per dag één keer geteld).</p>
+  <div class="resultaat-kop">
+    <p class="uitleg" style="margin:0;">{{ resultaat.aantal_regels }} regels &middot;
+      {{ resultaat.aantal_gevonden }} met uren gevonden &middot;
+      totaal <strong>{{ resultaat.totaal_min|uur }} uur</strong> ({{ resultaat.totaal_min|hhmm }},
+      elke persoon per dag één keer geteld).</p>
+    {% if resultaat.rijen %}
+    <div class="downloads">
+      <a class="knop" href="{{ url_for('opzoek_export', token=token, fmt='xlsx') }}">Download Excel</a>
+      <a class="knop" href="{{ url_for('opzoek_export', token=token, fmt='csv') }}">Download CSV</a>
+    </div>
+    {% endif %}
+  </div>
 
   {% if resultaat.rijen %}
   <div style="overflow-x:auto;">
