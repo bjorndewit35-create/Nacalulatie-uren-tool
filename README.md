@@ -30,10 +30,23 @@ Per planningregel van een eigen medewerker:
   langer, dan tellen de werkelijk gewerkte uren van die dag (zoals bij overige functies).
 - **Overige functies** → de **werkelijk gewerkte uren** van die dag (kolom `Tijd` uit de
   urenregistratie, pauzes er al af), één keer per medewerker per dag geteld.
+- **Korte rit én productiewerk op dezelfde dag** → dan telt alleen de volle gewerkte dag; de
+  rit valt daarbinnen en wordt niet apart bijgeteld (voorkomt dubbeltelling in het projecttotaal).
 
 Verlofregels tellen niet mee als gewerkte uren. Het overzicht toont per regel zowel de plantijd,
 de werkelijke dag-uren als de toegekende uren, plus opmerkingen, zodat je alles kunt controleren.
-Exporteer naar Excel of CSV met de knoppen bovenaan het resultaat.
+Zijn er nog **niet-geaccordeerde** uren meegeteld, dan verschijnt bovenaan een waarschuwing —
+die uren kunnen immers nog wijzigen. Exporteer naar Excel of CSV met de knoppen bovenaan het resultaat.
+
+### Uren opzoeken
+Wil je alleen per planningregel de werkelijke dag-uren naast elkaar zien (zonder plantijd-correctie)?
+Gebruik **Uren opzoeken**. Het resultaat is nu ook te downloaden als Excel of CSV, zodat je het
+rechtstreeks in je ERP kunt overnemen zonder overtypen.
+
+### Verkeerd bestand geüpload?
+Na een upload zie je per bestand hoeveel medewerkers en welke periode erin zaten, zodat een
+verkeerde export meteen opvalt. Onderaan **Stap 1** staat een lijst van geüploade bestanden met een
+knop **Verwijderen** waarmee je alle regels van dat bestand in één keer uit de database haalt.
 
 ## Gegevens & back-up
 Alle data staat lokaal in één SQLite-bestand in je thuismap: `Nacalculatie-uren-data/nacalculatie.db`

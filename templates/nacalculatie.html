@@ -29,6 +29,13 @@
     projecttotaal <strong>{{ resultaat.project_totaal_min|uur }} uur</strong>
     ({{ resultaat.project_totaal_min|hhmm }}).</p>
 
+  {% if resultaat.niet_geaccordeerd.regels %}
+    <div class="melding fout">Let op: {{ resultaat.niet_geaccordeerd.regels }} van de
+      {{ resultaat.niet_geaccordeerd.totaal_regels }} meegetelde regels zijn nog niet geaccordeerd
+      ({{ resultaat.niet_geaccordeerd.minuten|uur }} uur). Die uren kunnen nog wijzigen —
+      controleer ze voordat je het projecttotaal overneemt.</div>
+  {% endif %}
+
   {% if not resultaat.medewerkers %}
     <div class="melding fout">Geen eigen medewerkers herkend. Controleer of de uren al geüpload zijn,
       of dat namen anders gespeld zijn (zie Instellingen &middot; aliassen).</div>
