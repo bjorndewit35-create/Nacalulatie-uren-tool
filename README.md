@@ -58,6 +58,17 @@ start automatisch naar de nieuwe locatie gekopieerd.
 Een back-up maken kan via de knop **Back-up downloaden** op het dashboard, of kopieer het
 database-bestand zelf naar een veilige plek (USB of cloud). Dat ene bestand is je complete database.
 
+## Online gebruiken (zonder lokaal opstarten)
+Wil je de tool als een **online link** gebruiken in plaats van hem telkens op je pc te starten? Zie
+**[HOSTING.md](HOSTING.md)** voor een gratis stap-voor-stap uitleg (via PythonAnywhere). De link komt
+achter een wachtwoord te staan en je database blijft veilig bewaard.
+
+De tool leest hiervoor drie omgevingsvariabelen (allemaal optioneel; lokaal hoef je niets in te stellen):
+- `NACALC_DB` — pad naar het databasebestand.
+- `NACALC_SECRET` — geheime sleutel voor de sessie.
+- `NACALC_USER` + `NACALC_PW` — inlognaam en wachtwoord voor de online link. Alleen als **beide** gezet
+  zijn, wordt om een wachtwoord gevraagd; zonder deze twee (lokaal gebruik) is er geen login.
+
 ## Ondersteunde bestanden
 Zowel `.xls` (oud Excel-formaat, zoals de planning-export) als `.xlsx` worden gelezen, voor beide stappen.
 
