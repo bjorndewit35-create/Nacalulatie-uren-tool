@@ -1,11 +1,13 @@
-"""Flask-webapp voor de nacalculatie-uren-tool (lokaal te draaien)."""
+"""Flask-webapp voor de nacalculatie-uren-tool (lokaal of gehost)."""
 import datetime
+import hmac
 import os
 import tempfile
 import uuid
 
 from flask import (
-    Flask, flash, redirect, render_template, request, send_file, url_for,
+    Flask, Response, flash, redirect, render_template, request, send_file,
+    url_for,
 )
 
 import db
@@ -33,8 +35,29 @@ MAAND_NAMEN = ["jan", "feb", "mrt", "apr", "mei", "jun",
 app = Flask(__name__)
 app.secret_key = os.environ.get("NACALC_SECRET", "lokale-nacalculatie-tool")
 
+# Wachtwoordbeveiliging voor een gehoste (publieke) link. Alleen actief wanneer
+# NACALC_USER én NACALC_PW gezet zijn; lokaal (zonder env) is er geen login, dus
+# run.bat/run.sh blijven ongewijzigd werken.
+_AUTH_USER = os.environ.get("NACALC_USER")
+_AUTH_PW = os.environ.get("NACALC_PW")
+
+
+@app.before_request
+def _beveilig():
+    if not (_AUTH_USER and _AUTH_PW):
+        return  # geen wachtwoord ingesteld -> lokaal gebruik, geen login
+    a = request.authorization
+    if (a and hmac.compare_digest(a.username or "", _AUTH_USER)
+            and hmac.compare_digest(a.password or "", _AUTH_PW)):
+        return
+    return Response(
+        "Inloggen vereist.", 401,
+        {"WWW-Authenticate": 'Basic realm="Nacalculatie-tool"'},
+    )
+
+
 # Resultaten van een nacalculatie tijdelijk bewaren voor de download-knoppen.
-# Single-user lokale app, dus een eenvoudige in-memory cache volstaat.
+# Single-user app, dus een eenvoudige in-memory cache volstaat.
 _resultaten = {}
 _opzoek_resultaten = {}
 

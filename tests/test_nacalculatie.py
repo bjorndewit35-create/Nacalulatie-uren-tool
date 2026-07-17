@@ -346,3 +346,30 @@ def test_verwijder_upload():
     ups = db.uploads_overzicht(c)
     assert len(ups) == 1
     assert ups[0]["bron_bestand"] == "bestand-b.xlsx"
+
+
+# --- wachtwoordbeveiliging voor de gehoste link ---
+
+def _app_client(monkeypatch, tmp_path, user=None, pw=None):
+    import importlib
+    monkeypatch.setenv("NACALC_DB", str(tmp_path / "t.db"))
+    import app as appmod
+    importlib.reload(appmod)
+    appmod._AUTH_USER = user
+    appmod._AUTH_PW = pw
+    return appmod.app.test_client()
+
+
+def test_geen_login_zonder_env(monkeypatch, tmp_path):
+    client = _app_client(monkeypatch, tmp_path)
+    assert client.get("/").status_code == 200
+
+
+def test_login_vereist_met_env(monkeypatch, tmp_path):
+    import base64
+    client = _app_client(monkeypatch, tmp_path, user="baas", pw="geheim")
+    assert client.get("/").status_code == 401  # zonder inlog geweigerd
+    goed = base64.b64encode(b"baas:geheim").decode()
+    assert client.get("/", headers={"Authorization": f"Basic {goed}"}).status_code == 200
+    fout = base64.b64encode(b"baas:verkeerd").decode()
+    assert client.get("/", headers={"Authorization": f"Basic {fout}"}).status_code == 401
