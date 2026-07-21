@@ -80,8 +80,10 @@ def bereken_nacalculatie(conn, planning_regels, projectnaam=""):
                 toegekend = dag["minuten"]
                 bron = "werkelijk"
                 werkelijk_geteld.add((unorm, datum))
-                if dag["verlof"]:
-                    opmerkingen.append("let op: ook verlof op deze dag")
+                if dag["afwezigheid"]:
+                    opmerkingen.append(
+                        "let op: ook " + "/".join(sorted(dag["afwezigheid"])) + " op deze dag"
+                    )
 
         status_txt = ", ".join(sorted(dag["statuses"])) if dag["statuses"] else ""
         if status_txt and status_txt != "Geaccordeerd":
@@ -186,8 +188,10 @@ def zoek_werkelijke_uren(conn, planning_regels):
                     dag_geteld.add((unorm, pr["datum"]))
                 if voorkomen[(unorm, pr["datum"])] > 1:
                     opmerkingen.append("zelfde persoon meerdere regels deze dag — uren niet optellen")
-                if dag["verlof"]:
-                    opmerkingen.append("ook verlof deze dag")
+                if dag["afwezigheid"]:
+                    opmerkingen.append(
+                        "ook " + "/".join(sorted(dag["afwezigheid"])) + " deze dag"
+                    )
                 status_txt = ", ".join(sorted(dag["statuses"]))
                 if status_txt and status_txt != "Geaccordeerd":
                     opmerkingen.append(f"status: {status_txt}")
