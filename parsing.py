@@ -55,9 +55,19 @@ def schoon_naam(naam):
     return re.sub(r"\*+\s*$", "", str(naam or "")).strip()
 
 
-def is_verlof(werkgroep, werksoort):
+def afwezigheid_soort(werkgroep, werksoort):
+    """Geeft een korte omschrijving als deze regel afwezigheid is (verlof, ziek,
+    dokter/tandarts), anders None. Zulke regels tellen niet als gewerkte uren.
+    Herkenning op trefwoord in werkgroep/werksoort, bv. 'Bijzonder Verlof',
+    'Ziekte'/'Ziek', 'Dokter / Tandarts'."""
     s = f"{werkgroep or ''} {werksoort or ''}".lower()
-    return "verlof" in s
+    if "verlof" in s:
+        return "verlof"
+    if "ziek" in s:
+        return "ziek"
+    if "dokter" in s or "tandarts" in s:
+        return "dokter/tandarts"
+    return None
 
 
 def to_date(value, datemode=0):

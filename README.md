@@ -2,7 +2,7 @@
 
 Een lokale webtool om project-nacalculaties te maken voor Hoevenaars Licht Geluid Video.
 
-- **Stap 1 — Uren bijhouden:** upload maandelijks de urenregistratie-export(s) uit het ERP. De tool houdt een database bij die per maand groeit. Hetzelfde bestand opnieuw uploaden is veilig (geen dubbele regels).
+- **Stap 1 — Uren bijhouden:** upload maandelijks de urenregistratie-export(s) uit het ERP. Eén bestand met alle medewerkers (elk op een eigen tabblad) mag ook — de tool leest alle tabbladen in één keer. De database groeit per maand; hetzelfde bestand opnieuw uploaden is veilig (geen dubbele regels).
 - **Stap 2 — Nacalculatie:** upload de personeelsplanning van één project. De tool zoekt welke **eigen** medewerkers gepland staan, zoekt hun werkelijk gemaakte uren per dag op in de database en geeft een overzicht. Voor korte/deel-functies (bv. *Chauffeur*) wordt de **plantijd** aangehouden in plaats van de hele gewerkte dag.
 
 ## Starten
@@ -33,7 +33,8 @@ Per planningregel van een eigen medewerker:
 - **Korte rit én productiewerk op dezelfde dag** → dan telt alleen de volle gewerkte dag; de
   rit valt daarbinnen en wordt niet apart bijgeteld (voorkomt dubbeltelling in het projecttotaal).
 
-Verlofregels tellen niet mee als gewerkte uren. Het overzicht toont per regel zowel de plantijd,
+Afwezigheid telt niet mee als gewerkte uren: verlof, ziekte/ziek en dokter/tandarts worden herkend en
+uitgesloten (ze blijven wel zichtbaar als opmerking). Het overzicht toont per regel zowel de plantijd,
 de werkelijke dag-uren als de toegekende uren, plus opmerkingen, zodat je alles kunt controleren.
 Zijn er nog **niet-geaccordeerde** uren meegeteld, dan verschijnt bovenaan een waarschuwing —
 die uren kunnen immers nog wijzigen. Exporteer naar Excel of CSV met de knoppen bovenaan het resultaat.

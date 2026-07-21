@@ -4,7 +4,7 @@ import shutil
 import sqlite3
 from collections import Counter
 
-from parsing import is_verlof
+from parsing import afwezigheid_soort
 
 STANDAARD_PLANTIJD_FUNCTIES = ["Chauffeur", "Crew Transport"]
 
@@ -268,7 +268,7 @@ def uren_overzicht(conn, werknemer_norm=None, van=None, tot=None):
 
 
 def gewerkt_op_dag(conn, werknemer_norm, datum):
-    """Werkelijk gewerkte minuten (excl. verlof) van één medewerker op één dag."""
+    """Werkelijk gewerkte minuten (excl. afwezigheid) van één medewerker op één dag."""
     rows = conn.execute(
         "SELECT tijd_minuten, werkgroep, werksoort, status FROM uren "
         "WHERE werknemer_norm = ? AND datum = ?",
@@ -276,10 +276,11 @@ def gewerkt_op_dag(conn, werknemer_norm, datum):
     ).fetchall()
     totaal = 0
     statuses = set()
-    verlof = False
+    afwezigheid = set()
     for r in rows:
-        if is_verlof(r["werkgroep"], r["werksoort"]):
-            verlof = True
+        soort = afwezigheid_soort(r["werkgroep"], r["werksoort"])
+        if soort:
+            afwezigheid.add(soort)
             continue
         totaal += r["tijd_minuten"] or 0
         if r["status"]:
@@ -287,7 +288,7 @@ def gewerkt_op_dag(conn, werknemer_norm, datum):
     return {
         "minuten": totaal,
         "statuses": statuses,
-        "verlof": verlof,
+        "afwezigheid": afwezigheid,
         "gevonden": bool(rows),
     }
 

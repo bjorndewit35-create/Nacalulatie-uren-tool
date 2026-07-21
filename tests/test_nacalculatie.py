@@ -8,7 +8,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import db  # noqa: E402
 from nacalculatie import bereken_nacalculatie, zoek_werkelijke_uren  # noqa: E402
 from parsing import (  # noqa: E402
-    lijkt_materieel, naam_marker, normaliseer_naam, parse_tijd_naar_minuten,
+    afwezigheid_soort, lijkt_materieel, naam_marker, normaliseer_naam,
+    parse_tijd_naar_minuten,
 )
 
 
@@ -373,6 +374,46 @@ def test_login_vereist_met_env(monkeypatch, tmp_path):
     assert client.get("/", headers={"Authorization": f"Basic {goed}"}).status_code == 200
     fout = base64.b64encode(b"baas:verkeerd").decode()
     assert client.get("/", headers={"Authorization": f"Basic {fout}"}).status_code == 401
+
+
+# --- afwezigheid (verlof / ziek / dokter-tandarts) telt niet als gewerkte uren ---
+
+def test_afwezigheid_soort():
+    assert afwezigheid_soort("Bijzonder Verlof", "Bijzonder verlof") == "verlof"
+    assert afwezigheid_soort("Ouderschapsverlof", "Ouderschapsverlof") == "verlof"
+    assert afwezigheid_soort("Ziekte", "Ziek") == "ziek"
+    assert afwezigheid_soort("Dokter / Tandarts", "Dokter / Tandarts") == "dokter/tandarts"
+    assert afwezigheid_soort("1.Werkvloer", "1. Ingeklokt") is None
+    assert afwezigheid_soort("Ingeklokt", "Tijd klokken") is None
+
+
+def test_dokterbezoek_telt_niet_mee_op_werkdag():
+    c = _conn()
+    # Zelfde dag: 6u gewerkt + 35 min dokter -> alleen de 6u telt.
+    db.import_uren(c, [
+        _uur({}, werknemer="Tom Vos", tijd_minuten=360),
+        _uur({}, werknemer="Tom Vos", tijd_minuten=35, begintijd="00:00", eindtijd="00:00",
+             werkgroep="Dokter / Tandarts", werksoort="Dokter / Tandarts", declaratie_id=2),
+    ], "u.xlsx")
+    dag = db.gewerkt_op_dag(c, normaliseer_naam("Tom Vos"), "2026-04-25")
+    assert dag["minuten"] == 360
+    assert dag["afwezigheid"] == {"dokter/tandarts"}
+
+
+def test_ziektedag_geeft_nul_werkuren_met_opmerking():
+    c = _conn()
+    db.import_uren(c, [_uur(
+        {}, werknemer="Zieke Piet", tijd_minuten=480, begintijd="00:00", eindtijd="00:00",
+        werkgroep="Ziekte", werksoort="Ziek",
+    )], "u.xlsx")
+    dag = db.gewerkt_op_dag(c, normaliseer_naam("Zieke Piet"), "2026-04-25")
+    assert dag["minuten"] == 0
+    assert dag["afwezigheid"] == {"ziek"}
+    # In een nacalculatie: 0 toegekend, met een duidelijke opmerking.
+    res = bereken_nacalculatie(c, [_plan("Zieke Piet", "Lichttech Montage", duur_min=600)])
+    regel = res["medewerkers"][0]["regels"][0]
+    assert regel["toegekend_min"] == 0
+    assert "ziek" in regel["opmerking"]
 
 
 # --- back-up terugzetten ---
