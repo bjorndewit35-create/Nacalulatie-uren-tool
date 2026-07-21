@@ -19,6 +19,38 @@ def migreer_db(oud_pad, nieuw_pad):
     return True
 
 
+def is_geldige_db(pad):
+    """True als het bestand een SQLite-database met een 'uren'-tabel is."""
+    try:
+        c = sqlite3.connect(pad)
+        try:
+            return c.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='uren'"
+            ).fetchone() is not None
+        finally:
+            c.close()
+    except sqlite3.Error:
+        return False
+
+
+def herstel_db(bron_pad, doel_pad, veiligheidskopie_pad=None):
+    """Zet een geldige back-up terug op doel_pad. Maakt eerst (indien meegegeven en
+    het doel bestaat) een veiligheidskopie van de huidige data. Geeft db_status van de
+    teruggezette database. Gooit ValueError als de back-up ongeldig is (doel blijft dan
+    ongemoeid)."""
+    if not is_geldige_db(bron_pad):
+        raise ValueError("geen geldig back-upbestand")
+    if veiligheidskopie_pad and os.path.exists(doel_pad):
+        shutil.copy2(doel_pad, veiligheidskopie_pad)
+    os.makedirs(os.path.dirname(doel_pad) or ".", exist_ok=True)
+    shutil.copy2(bron_pad, doel_pad)
+    c = get_conn(doel_pad)
+    try:
+        return db_status(c)
+    finally:
+        c.close()
+
+
 def get_conn(path):
     nieuw = not os.path.exists(path)
     map_ = os.path.dirname(path)

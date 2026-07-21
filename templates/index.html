@@ -39,5 +39,14 @@
   update van de tool raakt het niet. Maak af en toe een back-up — kopieer dit bestand naar een
   veilige plek (USB of cloud), of gebruik de knop hieronder.</p>
   <a class="knop" href="{{ url_for('backup') }}">Back-up downloaden</a>
+
+  <form method="post" action="{{ url_for('herstel') }}" enctype="multipart/form-data"
+        class="inline-form"
+        onsubmit="return confirm('Back-up terugzetten? De huidige gegevens worden vervangen (er wordt eerst automatisch een veiligheidskopie gemaakt).');">
+    <input type="file" name="backup" accept=".db" required>
+    <button type="submit" class="klein">Back-up terugzetten</button>
+  </form>
+  <p class="uitleg">Een eerder gedownload back-upbestand (.db) terugzetten? Kies het hierboven. De
+  huidige gegevens worden dan eerst als veiligheidskopie bewaard, zodat je niets kunt kwijtraken.</p>
 </div>
 {% endblock %}

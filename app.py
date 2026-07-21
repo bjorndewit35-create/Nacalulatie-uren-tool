@@ -114,6 +114,38 @@ def backup():
     )
 
 
+@app.route("/herstel", methods=["POST"])
+def herstel():
+    bestand = request.files.get("backup")
+    if not bestand or not bestand.filename:
+        flash("Geen back-upbestand gekozen.", "fout")
+        return redirect(url_for("index"))
+    if not bestand.filename.lower().endswith(".db"):
+        flash("Kies een .db back-upbestand.", "fout")
+        return redirect(url_for("index"))
+    fd, tmp = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    try:
+        bestand.save(tmp)
+        stempel = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        s = db.herstel_db(tmp, DB_PATH, f"{DB_PATH}.voor-herstel-{stempel}")
+    except ValueError:
+        flash("Dit lijkt geen geldig back-upbestand van de tool. Er is niets gewijzigd.", "fout")
+        return redirect(url_for("index"))
+    except Exception as e:  # noqa: BLE001
+        flash(f"Terugzetten mislukt: {e}", "fout")
+        return redirect(url_for("index"))
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+    flash(
+        f"Back-up teruggezet: {s['medewerkers']} medewerkers, {s['regels']} regels. "
+        "De vorige gegevens zijn als veiligheidskopie bewaard.",
+        "ok",
+    )
+    return redirect(url_for("index"))
+
+
 @app.route("/uren", methods=["GET", "POST"])
 def uren():
     c = conn()
