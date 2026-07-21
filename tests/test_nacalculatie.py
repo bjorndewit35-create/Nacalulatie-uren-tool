@@ -373,3 +373,90 @@ def test_login_vereist_met_env(monkeypatch, tmp_path):
     assert client.get("/", headers={"Authorization": f"Basic {goed}"}).status_code == 200
     fout = base64.b64encode(b"baas:verkeerd").decode()
     assert client.get("/", headers={"Authorization": f"Basic {fout}"}).status_code == 401
+
+
+# --- back-up terugzetten ---
+
+def test_is_geldige_db(tmp_path):
+    goed = tmp_path / "goed.db"
+    c = db.get_conn(str(goed))
+    c.close()
+    assert db.is_geldige_db(str(goed)) is True
+    slecht = tmp_path / "slecht.db"
+    slecht.write_text("dit is geen database")
+    assert db.is_geldige_db(str(slecht)) is False
+
+
+def test_herstel_db_geldig(tmp_path):
+    bron = tmp_path / "backup.db"
+    bc = db.get_conn(str(bron))
+    db.import_uren(bc, [_uur({}, werknemer="Rik Zwart")], "u.xlsx")
+    bc.close()
+
+    doel = tmp_path / "live.db"
+    dc = db.get_conn(str(doel))  # bestaand doel met andere data
+    db.import_uren(dc, [_uur({}, werknemer="Oude Data")], "oud.xlsx")
+    dc.close()
+
+    veilig = tmp_path / "veilig.db"
+    status = db.herstel_db(str(bron), str(doel), str(veilig))
+    assert status["medewerkers"] == 1
+    assert status["regels"] == 1
+    # Doel bevat nu de back-up-data, niet meer de oude.
+    namen = [n for _, n in db.medewerker_namen(db.get_conn(str(doel)))]
+    assert namen == ["Rik Zwart"]
+    # De oude data is als veiligheidskopie bewaard.
+    assert veilig.exists()
+    oude = [n for _, n in db.medewerker_namen(db.get_conn(str(veilig)))]
+    assert oude == ["Oude Data"]
+
+
+def test_herstel_db_ongeldig_laat_doel_ongemoeid(tmp_path):
+    doel = tmp_path / "live.db"
+    dc = db.get_conn(str(doel))
+    db.import_uren(dc, [_uur({}, werknemer="Blijf Staan")], "u.xlsx")
+    dc.close()
+
+    junk = tmp_path / "geen.db"
+    junk.write_text("zomaar wat tekst")
+    try:
+        db.herstel_db(str(junk), str(doel))
+        assert False, "verwachtte ValueError"
+    except ValueError:
+        pass
+    # Doel is niet aangeraakt.
+    namen = [n for _, n in db.medewerker_namen(db.get_conn(str(doel)))]
+    assert namen == ["Blijf Staan"]
+
+
+def test_herstel_route(monkeypatch, tmp_path):
+    import importlib
+    import io
+    monkeypatch.setenv("NACALC_DB", str(tmp_path / "live.db"))
+    import app as appmod
+    importlib.reload(appmod)
+    appmod._AUTH_USER = None
+    appmod._AUTH_PW = None
+    client = appmod.app.test_client()
+
+    # Bouw een geldig back-upbestand met bekende data.
+    bron = tmp_path / "backup.db"
+    bc = db.get_conn(str(bron))
+    db.import_uren(bc, [_uur({}, werknemer="Sanne Web")], "u.xlsx")
+    bc.close()
+
+    live = str(tmp_path / "live.db")
+    data = {"backup": (io.BytesIO(bron.read_bytes()), "nacalculatie-backup.db")}
+    r = client.post("/herstel", data=data, content_type="multipart/form-data",
+                    follow_redirects=True)
+    assert r.status_code == 200
+    assert "Back-up teruggezet" in r.get_data(as_text=True)
+    # De live database bevat nu de teruggezette data.
+    assert [n for _, n in db.medewerker_namen(db.get_conn(live))] == ["Sanne Web"]
+
+    # Junk-bestand verandert niets aan de live database.
+    junk = {"backup": (io.BytesIO(b"geen database"), "kapot.db")}
+    r2 = client.post("/herstel", data=junk, content_type="multipart/form-data",
+                     follow_redirects=True)
+    assert "geen geldig back-upbestand" in r2.get_data(as_text=True)
+    assert [n for _, n in db.medewerker_namen(db.get_conn(live))] == ["Sanne Web"]
